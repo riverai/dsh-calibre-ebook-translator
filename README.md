@@ -1,0 +1,2 @@
+# harness中的Calibre书籍翻译插件适配
+Calibre中的ebook翻译插件在现代化agents工作流中的适配
