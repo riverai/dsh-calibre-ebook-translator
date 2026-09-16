@@ -1,0 +1,11 @@
+# dsh-calibre-ebook-translator bundle patch: inserts the host plugin row into
+# the profile roster. Applied as the `dsh.bundle.patch` manifest field declared
+# in package.json; activate with
+# `dsh plugin --profile web add github:riverai/dsh-calibre-ebook-translator`.
+#
+# The row is a bare plugin by package name: the node half (index.js, exports
+# ".") runs in the host process and syncs the bundled book-translator preset
+# into ~/.dsh/.agent-presets/book-translator on startup. No browser half.
+- insert:
+    - id: book-translator
+      name: dsh-calibre-ebook-translator
