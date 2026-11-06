@@ -1,13 +1,8 @@
 {
   "name": "dsh-calibre-ebook-translator",
-  "version": "0.1.0",
-  "description": "Book-translator agent preset for DeepSeek Harness (dsh): chunked whole-book translation with persistent glossary, memory-capsule and progress files, plus an independent review subagent, adapted from the Calibre ebook-translator workflow. The preset is synced into ~/.dsh/.agent-presets on host startup.",
+  "version": "2.0.0",
+  "description": "Book-translator agent preset for DeepSeek Harness (dsh 0.2.2+): chunked whole-book translation with persistent glossary, memory-capsule and progress files, plus an independent review subagent, adapted from the Calibre ebook-translator workflow. The preset is declared directly as a dsh bundle patch.",
   "type": "module",
-  "main": "index.js",
-  "exports": {
-    ".": "./index.js",
-    "./package.json": "./package.json"
-  },
   "engines": {
     "node": ">=22"
   },
@@ -17,9 +12,7 @@
     }
   },
   "files": [
-    "index.js",
     "cordis.patch.yml",
-    "book-translator",
     "README.md",
     "LICENSE"
   ],

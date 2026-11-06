@@ -12,7 +12,18 @@ Calibre Ebook翻译插件至今没有MCP支持，所以只能手动复制。相�
 
 使用方法：
 
-下载到dsh的agents预设文件夹中，然后输入“开新书 某个名字  你的其他想法，比如这本书应该用什么风格，如果不写就用我内置的风格决策和探测自动决定”。
+安装（需 dsh 0.2.2+。旧版把文件夹下载到 ~/.dsh/.agent-presets 的方式已随 dsh 0.2.2 移除，本仓库已改为标准插件包形式）：
+
+```powershell
+# GitHub 直装（推荐）
+dsh plugin --profile <你的profile名> add github:riverai/dsh-calibre-ebook-translator
+
+# 或克隆本仓库后本地安装
+git clone https://github.com/riverai/dsh-calibre-ebook-translator.git
+dsh plugin --profile <你的profile名> add file:<仓库路径>
+```
+
+安装后重启 dsh web，在 设置 → Agent 预设 中选择「书籍翻译模式」。新建会话输入“开新书 某个名字  你的其他想法，比如这本书应该用什么风格，如果不写就用我内置的风格决策和探测自动决定”。
 
 
 工作流会新建我手动制定格式的术语表，进度，记忆markdown文件。
