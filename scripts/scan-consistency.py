@@ -74,6 +74,71 @@ scan-consistency.py — 跨块一致性扫描器（v2.1）
          C｜同行长短并存（提示·通常正当）
          D｜勿用超串警示（提示）：勿用值是规范译法的超串（勿用检查会命中
               规范译法内部，如「电讯报」⊂《每日电讯报》）；本脚本已内置子串过滤。
+  G. 重复行一致性（--repeated；常规运行中默认开启，--no-repeated 关闭）
+       不依赖术语表——专补"覆盖依赖"这个天花板。
+       原理：**整行完全相同**的源文，出现在不同块时译文理应完全相同。这条不变量
+       是白送的，不需要术语表、不需要判断译法对错，机器就能查。
+       处理的正是 A–F 全部看不见的一类：**目录条目 vs 正文标题**（目录常在前置块里
+       被列两遍，正文各章另有独立标题行，两边独立翻译、无人对齐）；也覆盖重复的
+       栏目名、页眉页脚、重复引语。
+       真实事故：statusgame 这一类共 6 处，A–F 全部看不见；另四本书分别有 2／30／55／95 组。
+       ⚠ 但 G 本身只覆盖其中的**整行完全相同**子类（statusgame 里是 4 处：栏目名×3 ＋ 地址×1）。
+       章标题那 2 处 **G 看不见**——目录行是「Chapter 22: Status Generating Machines」，
+       正文行是「Status Generating Machines」，整行并不相同（前缀不同），故组不成一组
+       （实测：前者整行出现 2 次且译法一致，后者整行只出现 1 次、无对照物）。
+       要覆盖章标题这类，需要**规范化前置词**后再比对（剥掉 `Chapter N:` / `Part X:` /
+       数字编号 / 罗马数字），即下面的 H 检查。切勿把"G 通过"当成"标题已对齐"。
+       两处被遮蔽的原因值得记住——**宽容的接受规则会制造盲区**：
+         · 「地位生成机」⊂「地位生成机器」 → 包含判定放行（盲区）
+         · 「公平，不公平」登记为逗号复合式 → 正文「公平与不公平」两个部件都在，放行
+       例外：用**竖线形式**登记（源文行含空格）：
+         * | Notes and Sources | 目录与正文体例不同，属有意为之
+  H. 标题规范化比对（--hik；常规运行中默认开启，--no-hik 关闭）
+       专治 G 的盲区。G 要求整行完全相同，而目录行是「Chapter 22: Status Generating
+       Machines」、正文标题是「Status Generating Machines」——**整行并不相同，G 比不了**
+       （实测：前者整行出现 2 次且译法一致，后者只出现 1 次，没有对照物）。
+       H 的做法：**源文侧与译文侧都剥掉结构前缀**（源文 Chapter N: / Part X: / "1)" /
+       "100." / 罗马数字 / 第N章：；译文 第二十二章： / "1." / （一）），再比译文核。
+       已验证：目录行与正文行能并成同一组键，且修正前会报、修正后不报。
+       与 G 互补不重复：H 主动跳过"整行完全相同"的组，那部分归 G。
+       （--hik 一次跑 H+I+K 三项；三项都不依赖术语表。）
+  I. 未翻译残留（--hik）
+       判定：源文行是**英文散文**（剔除 URL 后 ≥3 个小写词、长度≥40）而译文**一个汉字都没有**
+             = 整行漏译；译文有汉字但夹 **≥8 个连续英文词** = 行内残留。
+       为什么用"小写词"界定散文：公司名/地址是 Title Case（HarperCollins Publishers
+       Australia Pty. Ltd. 无小写词），会被自然排除，不必维护白名单。
+       为什么先剔除 URL 与括号跨度：`www.npr.org/transcripts/…` 会被当成含小写词的散文；
+       而「《女诫》（The Book of Etiquette and Conduct for Women and Girls）」这种
+       **括注原文是协议明文允许的形式**，不是残留。两条都是实测踩出来的误报。
+       这是唯一能对"译全了没有"给出逐行证据的检查——协议第 1 条底线此前没有任何机器网。
+  K. 标识符原样保留（--hik）
+       源文行的 URL / DOI / ISBN / 引文年份 / 邮编，必须逐字（或等值）出现在译文。
+       ISBN 只比数字：译文规范写法是全角冒号「ISBN：9780008354633」，拿含半角冒号的
+       整串去比会误报（实测）。引文年份只取**括号内**的 `(Name, YYYY)` 形式，避免把
+       正文里的年代表述误伤。
+       实测价值：how-to-devalue 查出 16 处 URL、9 处 DOI 在译文中消失。
+  J. 数字一致性（--jlm；默认开启，--no-jlm 关闭）
+       源文的量（带单位的数字、3 位以上数字）必须仍出现在译文。
+       ★ 本项目最关键的一条实测事实：中文译文里数字**大量写成中文数字**——
+         the 1970s → 二十世纪七八十年代；3.6 billion → 三十六亿；
+         126,000 → 十二万六千；£693k → 69.3万；70 per cent → 七成；
+         两万七千（不是二万七千）。**纯数字比对会满屏误报**（首版 73 处，几乎全是误报）。
+       因此本检查会把每个数字展开成"所有合法写法"的候选集：绝对值的中文分解
+       （350 million → 三亿五千万）、以万/亿为单位的阿拉伯写法（12.6万、3.5亿）、
+       原文量词写法（3.6 billion → 36亿）、百分之N/七成/半数、世纪与年代
+       （the 1500s → 十六世纪，the 1980s → 八十年代）、以及"两/二"互换。
+       收尾后 statusgame 命中 **0**（迭代过程 73 → 43 → 10 → 1 → 0）；
+       章号/页码/图号/ISBN 前缀自动跳过；7 位以上数字视为编号（归 K）。
+  L. 交叉引用一致性（--jlm）
+       "see Chapter 12" → 必须出现「第12章」或「第十二章」**两种写法都认**；
+       p./pp. 页码、Kindle 位置（loc./location）只要求数字保留。
+  M. 行内容量异常（--jlm；阈值可用 --volume-low/--volume-high 调）
+       单行长度比（译文字数/源文字数）**极端**离群 = 疑似漏译/增译。
+       ⚠ 这是本工具里**最弱**的一项，依据是数据而非猜测：实测五本书长度比 p5≈0.26、
+       中位数 0.31–0.41、**p95≈0.58–1.04**——"译文和源文差不多长"是**常态**，
+       所以按中位数倍数设阈值必然误报（实测 179/115/118 条）。改用绝对极端阈值后
+       命中 0–2 条。脚本每次都会打印本书的分布（p5/中位/p95/最大/最小），
+       供人工判断是否需要临时调紧做一次细看。
 
 ════════════════════════════════════════════════════════════════════════
 例外登记：books/<slug>/.scan-exceptions
@@ -936,6 +1001,602 @@ def collision_report(book_dir: Path, nums: list, terms: list):
 
 
 # ────────────────────────────────────────────────────────────────────────
+# G. 重复行一致性（不依赖术语表 —— 专补"覆盖依赖"这个天花板）
+#
+# 原理：**整行完全相同**的源文，出现在不同块时，译文理应完全相同。
+# 这条不变量是白送的，不需要术语表、不需要人工判断译法对错，机器就能查。
+#
+# 为什么必须有这一项——真实事故：本书（statusgame）目录在 chunk-000 里被列了两遍，
+# 正文各章另有独立标题行。机械比对后发现 6 处不一致，而**当时已有的六项检查
+# 全部漏掉**，因为它们都依赖术语表，而这些行从来不是术语：
+#     Ch.22 目录「地位生成机器」 vs 正文「地位生成机」   ← 包含盲区（机 ⊂ 机器）遮蔽
+#     Ch.26 目录「公平与不公平」 vs 正文「公平，不公平」 ← 逗号复合规则遮蔽
+#     Notes and Sources   「注释与资料来源」 vs 「注释与出处」
+#     Also by Will Storr  「…其他作品」     vs 「…其他著作」
+#     About the Publisher 「关于出版商」     vs 「关于出版者」
+#     1 London Bridge Street 「伦敦桥街1号」 vs 保留拉丁文
+# 其中两处被遮蔽的原因值得记住：**宽容的接受规则会制造盲区**。
+#
+# 例外：books/<slug>/.scan-exceptions 用**竖线形式**登记（源文行含空格）：
+#     * | Notes and Sources | 目录与正文体例不同，属有意为之
+# ────────────────────────────────────────────────────────────────────────
+
+def repeated_line_groups(book_dir: Path, nums: list, min_len: int = 10):
+    """把全书源文行按规范化文本分组，返回 {小写源行: [(块, 行号, 源行, 译文)]}。
+
+    只有整行完全相同的源文行才归为一组。过滤掉过短的行、纯数字/符号行、
+    以及全大写缩写（罗马数字、CHAPTER 之类）。
+    """
+    groups = {}
+    for n in nums:
+        sp = book_dir / "chunks" / ("chunk-%03d.txt" % n)
+        tp = book_dir / "translations" / ("chunk-%03d.txt" % n)
+        if not sp.is_file() or not tp.is_file():
+            continue
+        sl = sp.read_text(encoding="utf-8-sig").split("\n")
+        tl = tp.read_text(encoding="utf-8-sig").split("\n")
+        for i, raw in enumerate(sl):
+            s = raw.strip()
+            if len(s) < min_len:
+                continue
+            if re.fullmatch(r"[\d\W_]+", s) or re.fullmatch(r"[A-Z]{1,6}", s):
+                continue
+            groups.setdefault(s.lower(), []).append(
+                (n, i + 1, s, tl[i].strip() if i < len(tl) else ""))
+    return groups
+
+
+def repeated_line_report(book_dir: Path, nums: list, exc, min_len: int = 10):
+    """检查 G：同一源文行的译文是否唯一。返回不一致组数。"""
+    groups = repeated_line_groups(book_dir, nums, min_len)
+    reps = {k: v for k, v in groups.items() if len(v) >= 2}
+    div, skipped = [], 0
+    for k, rows in sorted(reps.items()):
+        trs = {}
+        for n, ln, s, tr in rows:
+            trs.setdefault(tr, []).append((n, ln))
+        if len(trs) <= 1:
+            continue
+        # 例外：组内任一处登记过例外，整组放过
+        if any(exc.covers(n, ln, rows[0][2]) for n, ln, _s, _t in rows):
+            skipped += 1
+            continue
+        div.append((rows[0][2], rows, trs))
+    print("")
+    print("【G 重复行一致性】重复源文行 %d 组；译文不唯一 %d 组%s"
+          % (len(reps), len(div),
+             "（另有 %d 组已登记例外）" % skipped if skipped else ""))
+    print("    原理：整行完全相同的源文，出现在不同块时译文理应完全相同。")
+    print("    这一类漂移对术语表检查是隐形的（这些行往往根本不是术语）：")
+    print("    目录条目 vs 正文标题、重复的栏目名、页眉页脚、重复引语都属此类。")
+    for s, rows, trs in div[:20]:
+        print("  ✗ %s  （出现 %d 次，译文 %d 种）" % (s[:70], len(rows), len(trs)))
+        for tr, locs in sorted(trs.items(), key=lambda kv: -len(kv[1])):
+            print("        ×%-2d %s" % (len(locs), tr[:60] or "(空)"))
+            print("             %s" % ", ".join("chunk-%03d:L%d" % l for l in locs[:8]))
+    if len(div) > 20:
+        print("  …（共 %d 组，其余略）" % len(div))
+    if not reps:
+        print("  ✓ 无可比对的重复行")
+    elif not div:
+        print("  ✓ 无")
+    return len(div)
+
+
+# ────────────────────────────────────────────────────────────────────────
+# H / I / K —— 三项"不依赖术语表、且只需单边或弱对齐"的检查
+#
+# 共同点：都不依赖术语表（故不受"覆盖依赖"天花板限制），且判定标准客观。
+#   H 标题规范化比对：位置级，但**弱对齐**（先剥结构前缀再比对）
+#   I 未翻译残留    ：单边（只看"源文是散文、译文却仍是拉丁文"）
+#   K 标识符原样保留：单边（源文里的 URL/ISBN/引文年份/邮编必须逐字出现在译文）
+# ────────────────────────────────────────────────────────────────────────
+
+def _line_pairs(book_dir: Path, nums: list):
+    """逐行产出 (块号, 行号, 源文行, 译文行)。"""
+    for n in nums:
+        sp = book_dir / "chunks" / ("chunk-%03d.txt" % n)
+        tp = book_dir / "translations" / ("chunk-%03d.txt" % n)
+        if not sp.is_file() or not tp.is_file():
+            continue
+        sl = sp.read_text(encoding="utf-8-sig").split("\n")
+        tl = tp.read_text(encoding="utf-8-sig").split("\n")
+        for i, s in enumerate(sl):
+            yield n, i + 1, s, (tl[i] if i < len(tl) else "")
+
+
+# ── H. 标题规范化比对 ──
+# 源文侧要剥的前缀：Chapter N: / Part X: / 1) / I. / 第N章：
+STRIP_SRC = (
+    r"^chapter\s+\d+\s*[:.\-–—]\s*",
+    r"^part\s+(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)\s*[:.\-–—]\s*",
+    r"^\d+\s*[.)、]\s*",
+    r"^[IVXLC]+\s*[.)]\s+",
+    r"^第\s*[一二三四五六七八九十百零两\d]+\s*[章部节篇]\s*[：:、.]?\s*",
+)
+# 译文侧要剥的前缀：第二十二章：/ 1. / （一）
+STRIP_TR = (
+    r"^第\s*[一二三四五六七八九十百零两\d]+\s*[章部节篇]\s*[：:、.]?\s*",
+    r"^\d+\s*[.)、]\s*",
+    r"^[（(]\s*[一二三四五六七八九十\d]+\s*[)）]\s*",
+)
+
+
+def _strip_prefix(s: str, pats) -> str:
+    s = s.strip()
+    for _ in range(3):                       # 允许叠加（如 "1) Chapter 2: X"）
+        for p in pats:
+            s2 = re.sub(p, "", s, flags=re.I if p is STRIP_SRC[0] else 0)
+            if s2 != s:
+                s = s2
+    return s.strip().strip("“”\"'‘’《》").strip()
+
+
+def _heading_key(s: str) -> str:
+    c = _strip_prefix(s, STRIP_SRC)
+    c = re.sub(r"\s+", " ", c).strip().strip(".。．")
+    return c.lower()
+
+
+def _tr_core(t: str) -> str:
+    c = _strip_prefix(t, STRIP_TR)
+    return re.sub(r"\s+", " ", c).strip()
+
+
+def heading_report(book_dir: Path, nums: list, exc, min_core: int = 8,
+                   max_line: int = 100):
+    """检查 H：剥掉结构前缀后，同一标题的译文是否唯一。"""
+    groups = {}
+    for n, ln, s, t in _line_pairs(book_dir, nums):
+        ss = s.strip()
+        if not ss or len(ss) > max_line:
+            continue
+        k = _heading_key(ss)
+        if len(k) < min_core:
+            continue
+        groups.setdefault(k, []).append((n, ln, ss, _tr_core(t)))
+    reps = {k: v for k, v in groups.items() if len(v) >= 2}
+    div = []
+    for k, rows in sorted(reps.items()):
+        if len({r[2] for r in rows}) <= 1:   # 整行完全相同 → 属 G 的范围，H 不重复报
+            continue
+        cores = {r[3] for r in rows}
+        if len(cores) <= 1:
+            continue
+        if any(exc.covers(n, ln, rows[0][2]) for n, ln, _s, _t in rows):
+            continue
+        div.append((rows[0][2], rows, cores))
+    print("")
+    print("【H 标题规范化比对】可比对标题 %d 组；剥前缀后译文不唯一 %d 组"
+          % (len(reps), len(div)))
+    print("    针对 G 的盲区：目录行「Chapter 22: X」与正文行「X」整行并不相同，")
+    print("    G 比不了；H 先剥掉 Chapter N: / Part X: / 1) / 第N章： 再比。")
+    for s, rows, cores in div[:20]:
+        print("  ✗ %s  （%d 处，译文 %d 种）" % (s[:66], len(rows), len(cores)))
+        for c in sorted(cores):
+            locs = ["chunk-%03d:L%d" % (r[0], r[1]) for r in rows if r[3] == c]
+            print("        %s" % (c[:64] or "(空)"))
+            print("             %s" % ", ".join(locs[:6]))
+    if len(div) > 20:
+        print("  …（共 %d 组，其余略）" % len(div))
+    if not reps:
+        print("  ✓ 无可比对的标题")
+    elif not div:
+        print("  ✓ 无")
+    return len(div)
+
+
+# ── I. 未翻译残留 ──
+LOWER_WORD = re.compile(r"\b[a-z]{2,}\b")
+CJK = re.compile(r"[\u4e00-\u9fff]")
+LONG_EN = re.compile(r"(?:[A-Za-z][A-Za-z'’\-]*\s+){7,}[A-Za-z][A-Za-z'’\-]*")
+# 判定前要剔除的两类"合法拉丁文"，否则全是误报：
+URLISH = re.compile(r"(?:https?://|www\.)\S+")          # URL 里的 calibre、com 会被当成"小写词"
+PAREN_SPAN = re.compile(r"[（(][^（）()]{0,300}[）)]|\[[^\[\]]{0,300}\]")  # 括注原文是协议允许的形式
+
+
+def untranslated_report(book_dir: Path, nums: list, exc):
+    """检查 I：源文是英文散文而译文仍是拉丁文（整行漏译 / 行内长英文残留）。"""
+    whole, inside = [], []
+    for n, ln, s, t in _line_pairs(book_dir, nums):
+        ss, ts = s.strip(), t.strip()
+        if not ss or not ts or exc.covers(n, ln, ss):
+            continue
+        # I1 整行未译：源文是散文（≥3 个小写词，长度≥40），译文一个汉字都没有
+        #    用"小写词"而不是"任意英文词"来界定散文——公司名/地址是 Title Case，
+        #    会自然被排除（HarperCollins Publishers Australia Pty. Ltd. 无小写词）。
+        #    先剔除 URL：否则 "www.npr.org/transcripts/..." 会被当成含小写词的散文。
+        prose = URLISH.sub(" ", ss)
+        if len(prose) >= 40 and len(LOWER_WORD.findall(prose)) >= 3 and not CJK.search(ts):
+            whole.append((n, ln, ss, ts))
+            continue
+        # I2 行内残留：译文里有汉字，但夹着 ≥8 个连续英文词。
+        #    先剔除括号跨度——协议本就允许"《中文名》（Original Title）"这种括注原文。
+        if CJK.search(ts):
+            m = LONG_EN.search(PAREN_SPAN.sub(" ", ts))
+            if m:
+                inside.append((n, ln, ss, m.group(0)))
+    print("")
+    print("【I 未翻译残留】整行未译 %d 处；行内长英文残留 %d 处" % (len(whole), len(inside)))
+    print("    判定：源文行是英文散文（≥3 个小写词、长度≥40）而译文无汉字 = 整行漏译；")
+    print("    译文有汉字但夹 ≥8 连续英文词 = 行内残留。Title Case 的公司名/地址不算散文。")
+    for n, ln, ss, ts in whole[:12]:
+        print("  ✗ chunk-%03d:L%d 整行未译" % (n, ln))
+        print("        源: %s" % ss[:88])
+        print("        译: %s" % ts[:88])
+    if len(whole) > 12:
+        print("  …（整行未译共 %d 处）" % len(whole))
+    for n, ln, ss, run in inside[:8]:
+        print("  ✗ chunk-%03d:L%d 行内残留 %d 词" % (n, ln, len(run.split())))
+        print("        %s" % run[:88])
+    if len(inside) > 8:
+        print("  …（行内残留共 %d 处）" % len(inside))
+    if not whole and not inside:
+        print("  ✓ 无")
+    return len(whole) + len(inside)
+
+
+# ── K. 标识符原样保留 ──
+PAT_URL = re.compile(r"(?:https?://|www\.)[^\s，。；、）)】\"'”]+")
+PAT_DOI = re.compile(r"\b10\.\d{4,9}/[^\s，。；）)\"'”]+")
+PAT_ISBN = re.compile(r"ISBN[-\s:：]*(?:97[89][-\s]?)?[\d][\d\-\s]{8,}[\dXx]")
+PAT_YEAR_CITE = re.compile(r"[(（][^()（）]{0,80}?,\s*((?:1[5-9]|20)\d{2})\s*[)）]")
+PAT_POST = re.compile(r"\b[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}\b")
+
+K_LABELS = {
+    "URL": PAT_URL, "DOI": PAT_DOI, "ISBN": PAT_ISBN,
+    "引文年份": PAT_YEAR_CITE, "邮编": PAT_POST,
+}
+
+
+def identifier_report(book_dir: Path, nums: list, exc):
+    """检查 K：源文的标识符必须逐字出现在译文（URL/DOI/ISBN/引文年份/邮编）。"""
+    hits = {k: [] for k in K_LABELS}
+    for n, ln, s, t in _line_pairs(book_dir, nums):
+        ss, ts = s.strip(), t.strip()
+        if not ss or not ts or exc.covers(n, ln, ss):
+            continue
+        for label, pat in K_LABELS.items():
+            toks = set()
+            for m in pat.finditer(ss):
+                tok = m.group(1) if m.groups() else m.group(0)
+                toks.add(tok.strip().rstrip(").,;"))
+            for tok in sorted(toks):
+                if not tok:
+                    continue
+                if label == "ISBN":
+                    # ISBN 只比数字：译文里的全角冒号「ISBN：9780…」是正确写法，
+                    # 拿含半角冒号的整串去比会误报
+                    want, have = re.sub(r"\D", "", tok), re.sub(r"\D", "", ts)
+                else:
+                    want = re.sub(r"\s+", "", tok)
+                    have = re.sub(r"\s+", "", ts)
+                if want and want in have:
+                    continue
+                hits[label].append((n, ln, tok, ss, ts))
+    total = sum(len(v) for v in hits.values())
+    print("")
+    print("【K 标识符原样保留】缺失 %d 处（协议要求逐字保留）" % total)
+    for label, v in hits.items():
+        print("    %-6s %d 处" % (label, len(v)))
+    for label, v in hits.items():
+        for n, ln, tok, ss, ts in v[:6]:
+            print("  ✗ chunk-%03d:L%d %s 缺失「%s」" % (n, ln, label, tok[:60]))
+            print("        译: %s" % ts[:88])
+    if not total:
+        print("  ✓ 无")
+    return total
+
+
+def hik_report(book_dir: Path, nums: list, exc):
+    nH = heading_report(book_dir, nums, exc)
+    nI = untranslated_report(book_dir, nums, exc)
+    nK = identifier_report(book_dir, nums, exc)
+    return nH, nI, nK
+
+
+# ────────────────────────────────────────────────────────────────────────
+# J / L / M —— 数字一致性 / 交叉引用一致性 / 行内容量异常
+#
+# 三者同样只比对**客观事实**（数字还在不在？编号对不对得上？长度是不是离谱了？），
+# 不判断"译法好不好"，所以可以同时做到高召回与低误报。
+# 共同的去误伤手段：先剔除会合法变形的成分，再比对。
+# ────────────────────────────────────────────────────────────────────────
+
+PLACEHOLDER = re.compile(r"\{\{[^}]{0,40}\}\}")     # 转换器遗留的 {{id_00010}} 之类
+_PLACE_SKIP = re.compile(
+    r"(?:pp?\.|Chapter|Chapters|Part|Parts|Figure|Fig\.|Table|footnote|note|"
+    r"ISBN|loc\.|location|edn|ed\.|vol\.|no\.)\s*$", re.I)
+
+# J：带单位的量（统计数字几乎都落在这里），以及独立的 3 位以上数字
+J_UNIT = re.compile(
+    r"(?<![\d.,])(\d{1,3}(?:[,\s]\d{3})+|\d+(?:\.\d+)?)\s*"
+    r"(per cent|percent|%|million|billion|trillion|thousand|"
+    r"years?|months?|weeks?|days?|hours?|minutes?|seconds?|"
+    r"people|participants|subjects|students|children|men|women|"
+    r"times|metres?|meters?|miles?|kilometres?|kilometers?|kg|kilograms?|"
+    r"pounds?|feet|inches|cm|mm|km|k)\b", re.I)
+J_BIGNUM = re.compile(r"(?<![\d.,])(\d{1,3}(?:[,\s]\d{3})+|\d{3,}(?:\.\d+)?)(?![\d])")
+
+_ZH = "零一二三四五六七八九"
+
+
+def zh_num(n: int) -> str:
+    """阿拉伯数字 → 中文数字（章节/页码引用两种写法都要认）。"""
+    if n < 10:
+        return _ZH[n]
+    if n < 20:
+        return "十" + (_ZH[n % 10] if n % 10 else "")
+    if n < 100:
+        return _ZH[n // 10] + "十" + (_ZH[n % 10] if n % 10 else "")
+    if n < 1000:
+        h, r = divmod(n, 100)
+        s = _ZH[h] + "百"
+        return s if r == 0 else s + ("零" + _ZH[r] if r < 10 else zh_num(r))
+    return str(n)
+
+
+def _flat(s: str) -> str:
+    """压掉空格与各种千位分隔符，供大数字比对。"""
+    return re.sub(r"[\s,\u00a0\u2009\u202f]", "", s)
+
+
+_ZH_U = ["", "十", "百", "千"]
+_ZH_BIG = ["", "万", "亿"]
+
+
+def _zh_under10000(n: int) -> str:
+    s, res, zero = str(n), "", False
+    for i, ch in enumerate(s):
+        d, pos = int(ch), len(s) - i - 1
+        if d == 0:
+            zero = True
+            continue
+        if zero and res:
+            res += "零"
+        zero = False
+        if not (pos == 1 and d == 1 and not res):   # 15 → 十五，不是一十五
+            res += _ZH[d]
+        res += _ZH_U[pos]
+    return res
+
+
+def zh_int(n: int) -> str:
+    """阿拉伯数字 → 中文数字（1 26000 → 十二万六千）。"""
+    n = int(n)
+    if n == 0:
+        return "零"
+    if n < 0:
+        return "负" + zh_int(-n)
+    parts, unit = [], 0
+    while n > 0:
+        seg = n % 10000
+        if seg:
+            if unit < len(_ZH_BIG):
+                parts.append(_zh_under10000(seg) + _ZH_BIG[unit])
+            else:                       # 超出「亿」的段直写阿拉伯数字（极罕见，且不该走到）
+                parts.append(str(seg))
+        elif parts and not parts[-1].endswith("零"):
+            parts.append("零")
+        n //= 10000
+        unit += 1
+    return "".join(reversed(parts)).strip("零") or "零"
+
+
+def zh_dec(x: float) -> str:
+    """2.7 → 二点七"""
+    s = ("%g" % x)
+    if "." not in s:
+        return zh_int(int(float(s)))
+    a, b = s.split(".")
+    return zh_int(int(a)) + "点" + "".join(_ZH[int(c)] for c in b)
+
+
+def _num_candidates(flat: str, unit: str) -> set:
+    """一个数字在译文里所有"合法写法"的候选串。
+
+    ★ 本项目实测出的关键事实：中文译文里数字**大量写成中文数字**——
+      the 1970s → 二十世纪七八十年代；3.6 billion → 三十六亿；
+      126,000 → 十二万六千。纯数字比对会满屏误报，必须认这些写法。
+    """
+    c = set()
+    try:
+        x = float(flat)
+    except ValueError:
+        return c
+    c.add(flat)
+    u = (unit or "").lower()
+    SCALE = {"million": 1e6, "billion": 1e9, "trillion": 1e12, "k": 1e3}
+    V = x * SCALE[u] if u in SCALE else x          # ★ 一律换成**绝对值**再生成候选
+    if abs(V - round(V)) < 1e-9:
+        c.add(zh_int(int(round(V))))
+    else:
+        c.add(zh_dec(V))
+    if abs(x - round(x)) < 1e-9:
+        c.add(zh_int(int(round(x))))
+    else:
+        c.add(zh_dec(x))
+    # 中文大数的书写法：绝对值的中文分解（350 million → 三亿五千万）
+    # 加上以万/亿为单位的阿拉伯写法（12.6万、3.5亿）
+    if V >= 1e4:
+        c.add("%g万" % (V / 1e4))
+        c.add("%g万" % (round(V / 1e4)))
+    if V >= 1e8:
+        c.add("%g亿" % (V / 1e8))
+        c.add("%g亿" % (round(V / 1e8)))
+    mult = {"million": ("%g万", 100), "billion": ("%g亿", 10),
+            "trillion": ("%g亿", 10000)}.get(u)   # 原文量词写法（3.6 billion → 36亿）
+    if mult:
+        c.add(mult[0] % (x * mult[1]))
+    if u in ("per cent", "percent", "%"):
+        if abs(x - round(x)) < 1e-9:
+            c.add("百分之" + zh_int(int(round(x))))
+            n = int(round(x))
+            if 10 <= n <= 90 and n % 10 == 0:
+                c.add(zh_int(n // 10) + "成")      # 70 per cent → 七成
+            if n == 50:
+                c |= {"半数", "一半", "五成"}
+        else:
+            c.add("百分之" + zh_dec(x))
+    if len(flat) == 4 and flat.isdigit() and 1500 <= int(flat) <= 2099:
+        y = int(flat)
+        cent = (y - 1) // 100 + 1
+        zs = {y % 100, cent, y // 100}
+        if y % 100 == 0:
+            zs.add(cent + 1)                       # the 1500s → 十六世纪
+        for z in zs:
+            if z:
+                c |= {str(z).zfill(2), "%g世纪" % z, zh_int(z) + "世纪", str(z) + "世纪"}
+    # 两/二的合法互换：两万七千（不是二万七千）。只替"廿位之外的"二，
+    # 避免把「十二万」错替成「十两万」。
+    out = set()
+    for v in c:
+        out.add(v)
+        out.add(re.sub(r"(?<!十)二(?=[百千万亿])", "两", v))
+    return {v for v in out if v}
+
+
+def number_report(book_dir: Path, nums: list, exc):
+    """检查 J：源文的量（数字）是否仍出现在译文——认阿拉伯数字与中文数字两种写法。"""
+    hits = []
+    for n, ln, s, t in _line_pairs(book_dir, nums):
+        ss, ts = s.strip(), t.strip()
+        if not ss or not ts or exc.covers(n, ln, ss):
+            continue
+        ss = PLACEHOLDER.sub(" ", ss)
+        ts = PLACEHOLDER.sub(" ", ts)
+        flat_t, raw_t = _flat(ts), ts
+        toks = {}
+        for m in J_UNIT.finditer(ss):
+            toks[_flat(m.group(1))] = (m.group(1), m.group(2))
+        for m in J_BIGNUM.finditer(ss):
+            num = m.group(1)
+            pre = ss[max(0, m.start() - 12):m.start()]
+            if _PLACE_SKIP.search(pre):          # 章号/页码/图号/ISBN 之类会合法变形
+                continue
+            toks.setdefault(_flat(num), (num, ""))
+        for flat, (orig, unit) in toks.items():
+            if not flat or len(re.sub(r"\D", "", flat)) > 6:
+                continue                    # 7 位以上多为 ISBN/编号/时间戳，属 K 的范围
+            if any(v in raw_t or v in flat_t for v in _num_candidates(flat, unit)):
+                continue
+            hits.append((n, ln, orig, ss, ts))
+    print("")
+    print("【J 数字一致性】源文数字未出现在译文 %d 处" % len(hits))
+    print("    认**阿拉伯数字与中文数字两种写法**：the 1970s→二十世纪七八十年代、")
+    print("    3.6 billion→三十六亿、126,000→十二万六千、74 per cent→百分之七十四。")
+    print("    只看带单位的量与 3 位以上数字；章号/页码/图号/ISBN 前缀的自动跳过。")
+    for n, ln, num, ss, ts in hits[:14]:
+        print("  ✗ chunk-%03d:L%d 数字「%s」未出现" % (n, ln, num))
+        print("        源: %s" % ss[:86])
+        print("        译: %s" % ts[:86])
+    if len(hits) > 14:
+        print("  …（共 %d 处）" % len(hits))
+    if not hits:
+        print("  ✓ 无")
+    return len(hits)
+
+
+# L：交叉引用（第 N 章 / 第 N 页 / 位置 N）
+L_CHAP = re.compile(r"\bChapters?\s+(\d+)", re.I)
+L_PAGE = re.compile(r"\b(?:pp?\.|pages?)\s*(\d+)", re.I)
+L_LOC = re.compile(r"\b(?:loc\.|location)s?\s*(\d+)", re.I)
+
+
+def xref_report(book_dir: Path, nums: list, exc):
+    """检查 L：交叉引用的编号是否与源文一致。"""
+    hits = []
+    for n, ln, s, t in _line_pairs(book_dir, nums):
+        ss, ts = s.strip(), t.strip()
+        if not ss or not ts or exc.covers(n, ln, ss):
+            continue
+        flat_t = _flat(ts)
+        for label, pat, need_zh in (("章引用", L_CHAP, True),
+                                    ("页码", L_PAGE, False),
+                                    ("位置", L_LOC, False)):
+            for m in pat.finditer(ss):
+                num = m.group(1)
+                ok = num in ts or num in flat_t
+                if not ok and need_zh:
+                    # 目录用「第十二章」、正文引用可能用「第12章」——两种都要认
+                    ok = ("第%s章" % zh_num(int(num))) in ts or ("第%s章" % zh_num(int(num))) in flat_t
+                if not ok:
+                    hits.append((n, ln, label, num, ss, ts))
+    print("")
+    print("【L 交叉引用一致性】编号对不上 %d 处" % len(hits))
+    print("    章引用接受「第12章」与「第十二章」两种写法；页码/位置只要求数字保留。")
+    for n, ln, label, num, ss, ts in hits[:12]:
+        print("  ✗ chunk-%03d:L%d %s「%s」在译文中找不到" % (n, ln, label, num))
+        print("        源: %s" % ss[:86])
+        print("        译: %s" % ts[:86])
+    if len(hits) > 12:
+        print("  …（共 %d 处）" % len(hits))
+    if not hits:
+        print("  ✓ 无")
+    return len(hits)
+
+
+# M：行内容量异常（漏译/增译的第二道网）
+def volume_report(book_dir: Path, nums: list, exc, low: float = 0.08,
+                  high: float = 2.5):
+    """检查 M：单行长度比的**极端**离群 = 疑似漏译或增译。
+
+    ⚠ 这是本工具里**最弱**的一项，理由是数据而非猜测：实测五本书的长度比
+    （译文字数/源文字数）p5≈0.26、中位数≈0.31–0.41、**p95≈0.58–1.04**。
+    也就是说"译文和源文差不多长"在本书系里是**常态**，任何按中位数倍数
+    （如 2.5×中位）设的阈值都会把大量正常行判为"增译"（实测误报 179/115/118 条）。
+    所以这里只用**绝对极端阈值**：命中数降到 0–1 条，只在真的离谱时才响。
+    需要人工细看时用 --volume-low/--volume-high 自行调紧。
+    """
+    rows = []
+    for n, ln, s, t in _line_pairs(book_dir, nums):
+        ss = PLACEHOLDER.sub(" ", s).strip()
+        ts = PLACEHOLDER.sub(" ", t).strip()
+        if not ss or not ts:
+            continue
+        rows.append((n, ln, len(ss), len(ts), ss, ts))
+    base = sorted(r[3] / r[2] for r in rows if r[2] >= 40)
+    med = base[len(base) // 2] if base else 0.0
+
+    def q(f):
+        return base[min(len(base) - 1, int(len(base) * f))] if base else 0.0
+
+    hits = []
+    for n, ln, sl, tl, ss, ts in rows:
+        if exc.covers(n, ln, ss):
+            continue
+        r = tl / sl
+        if sl >= 100 and tl <= 15:
+            hits.append(("近空", n, ln, sl, tl, ss, ts, r))
+        elif sl >= 80 and r < low:
+            hits.append(("严重压缩", n, ln, sl, tl, ss, ts, r))
+        elif sl >= 40 and r > high:
+            hits.append(("严重膨胀", n, ln, sl, tl, ss, ts, r))
+    print("")
+    print("【M 行内容量异常】%d 处（阈值 压缩<%.2f / 膨胀>%.2f）" % (len(hits), low, high))
+    print("    本书长度比分布：p5=%.2f 中位=%.2f p95=%.2f 最大=%.2f 最小=%.2f（占位符已剔除）"
+          % (q(.05), med, q(.95), base[-1] if base else 0, base[0] if base else 0))
+    print("    本项只看**极端**离群：中英对译长度比 0.8 属常态，按中位数倍数设阈值必然误报。")
+    for kind, n, ln, sl, tl, ss, ts, r in sorted(hits, key=lambda x: x[7])[:14]:
+        print("  ✗ chunk-%03d:L%d %s 源%d字→译%d字（比 %.2f）" % (n, ln, kind, sl, tl, r))
+        print("        源: %s" % ss[:86])
+        print("        译: %s" % ts[:86])
+    if len(hits) > 14:
+        print("  …（共 %d 处）" % len(hits))
+    if not hits:
+        print("  ✓ 无")
+    return len(hits)
+
+
+def jlm_report(book_dir: Path, nums: list, exc, vlow: float = 0.08,
+               vhigh: float = 2.5):
+    nJ = number_report(book_dir, nums, exc)
+    nL = xref_report(book_dir, nums, exc)
+    nM = volume_report(book_dir, nums, exc, vlow, vhigh)
+    return nJ, nL, nM
+
+
+# ────────────────────────────────────────────────────────────────────────
 # 主入口
 # ────────────────────────────────────────────────────────────────────────
 
@@ -966,6 +1627,29 @@ def main() -> int:
                     default="summary", help="输出格式")
     ap.add_argument("--collisions", action="store_true",
                     help="候选/包含关系冲突检查（只跑 F）：列出「规范译法是别的写法子串」的组合")
+    ap.add_argument("--repeated", action="store_true",
+                    help="重复行一致性检查（只跑 G）：同一源文行的译文是否唯一")
+    ap.add_argument("--no-repeated", action="store_false", dest="repeated_run",
+                    help="常规运行中关闭 G 检查")
+    ap.add_argument("--repeated-min", type=int, default=10,
+                    help="G 检查参与比对的最小行长（默认 10，过短的行噪声大）")
+    ap.set_defaults(repeated_run=True)
+    ap.add_argument("--hik", action="store_true",
+                    help="只跑 H+I+K：标题规范化比对 / 未翻译残留 / 标识符原样保留")
+    ap.add_argument("--no-hik", action="store_false", dest="hik_run",
+                    help="常规运行中关闭 H/I/K 检查")
+    ap.set_defaults(hik_run=True)
+    ap.add_argument("--jlm", action="store_true",
+                    help="只跑 J+L+M：数字一致性 / 交叉引用一致性 / 行内容量异常")
+    ap.add_argument("--quick", action="store_true",
+                    help="只跑不依赖术语表的 G+M 组（G H I J K L M）——秒级，适合每块都跑")
+    ap.add_argument("--no-jlm", action="store_false", dest="jlm_run",
+                    help="常规运行中关闭 J/L/M 检查")
+    ap.add_argument("--volume-low", type=float, default=0.08,
+                    help="M 检查的压缩阈值（默认 0.08；调大可做人工细看）")
+    ap.add_argument("--volume-high", type=float, default=2.5,
+                    help="M 检查的膨胀阈值（默认 2.5）")
+    ap.set_defaults(jlm_run=True)
     ap.add_argument("--discover", action="store_true", help="术语发现模式（只跑 D）")
     ap.add_argument("--discover-min", type=int, default=12, help="发现模式最小出现次数")
     ap.add_argument("--discover-top", type=int, default=50, help="发现模式最多列出条数")
@@ -1003,6 +1687,44 @@ def main() -> int:
         if args.exit_zero:
             return 0
         return 2 if (nA or nB) else 0
+
+    if args.repeated:
+        exc_only = Exceptions(book_dir / ".scan-exceptions")
+        nG = repeated_line_report(book_dir, nums, exc_only, args.repeated_min)
+        if args.exit_zero:
+            return 0
+        return 2 if nG else 0
+
+    if args.hik:
+        exc_only = Exceptions(book_dir / ".scan-exceptions")
+        nH, nI, nK = hik_report(book_dir, nums, exc_only)
+        if args.exit_zero:
+            return 0
+        return 2 if (nH or nI or nK) else 0
+
+    if args.jlm:
+        exc_only = Exceptions(book_dir / ".scan-exceptions")
+        nJ, nL, nM = jlm_report(book_dir, nums, exc_only,
+                                args.volume_low, args.volume_high)
+        if args.exit_zero:
+            return 0
+        return 2 if (nJ or nL or nM) else 0
+
+    if args.quick:
+        # G–M 全部不读术语表，所以很快；适合放进"每块都跑"的流程。
+        exc_only = Exceptions(book_dir / ".scan-exceptions")
+        nG = repeated_line_report(book_dir, nums, exc_only, args.repeated_min)
+        nH, nI, nK = hik_report(book_dir, nums, exc_only)
+        nJ, nL, nM = jlm_report(book_dir, nums, exc_only,
+                                args.volume_low, args.volume_high)
+        tot = nG + nH + nI + nK + nJ + nL + nM
+        print("")
+        print("=" * 62)
+        print("快速检查裁定（只含不依赖术语表的 G–M）: %s（合计 %d 处）"
+              % ("通过" if tot == 0 else "有待裁定项", tot))
+        if args.exit_zero:
+            return 0
+        return 2 if tot else 0
 
     if args.discover:
         print("发现模式：chunk-%03d..chunk-%03d，最小出现 %d 次" % (lo, hi, args.discover_min))
@@ -1154,7 +1876,24 @@ def main() -> int:
     else:
         print("【F 候选/包含关系】A 类自相矛盾 0 组")
 
-    findings = len(r["tier1"]) + len(r["forbidden"]) + len(diverge) + len(self_contra)
+    # ── G. 重复行一致性（不依赖术语表；常规运行顺带跑）──
+    nG = 0
+    if args.repeated_run:
+        nG = repeated_line_report(book_dir, nums, exc, args.repeated_min)
+
+    # ── H/I/K. 标题规范化 / 未翻译残留 / 标识符保留（都不依赖术语表）──
+    nH = nI = nK = 0
+    if args.hik_run:
+        nH, nI, nK = hik_report(book_dir, nums, exc)
+
+    # ── J/L/M. 数字 / 交叉引用 / 行内容量（同样不依赖术语表）──
+    nJ = nL = nM = 0
+    if args.jlm_run:
+        nJ, nL, nM = jlm_report(book_dir, nums, exc,
+                                args.volume_low, args.volume_high)
+
+    findings = (len(r["tier1"]) + len(r["forbidden"]) + len(diverge)
+                + len(self_contra) + nG + nH + nI + nK + nJ + nL + nM)
     print("")
     print("=" * 62)
     if findings == 0:
