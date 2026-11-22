@@ -155,7 +155,7 @@
                 (e) Append a dated "## 回改" note to memory.md: chunk, what was wrong, old->new, why, trigger.
                 RIPPLE WARNING: a book is a tightly coupled system. A 回改 often implies changes ELSEWHERE: the same term in other chunks, glossary rows, cross-references, or notes sections that quote the passage. After any 回改, grep the glossary and scan-consistency.py to locate affected chunks; list them to the user and propose which need the same fix. Do not assume a change is isolated.
 
-                                ## Editing discipline (CRITICAL: no blind replace)
+                ## Editing discipline (CRITICAL: no blind replace)
                 
                 apply-edits.py is the ONLY approved batch-edit tool. Do NOT write ad-hoc one-off Python scripts - if apply-edits.py lacks a capability, upgrade it and record in memory.md. Only if entirely unusable may you fall back, with a stated reason.
                 - Input is a TSV file (_editsNNN.tsv): old_string<TAB>new_string<TAB>note<TAB>occurrence, one edit per line, UTF-8 no BOM. Delete after use. The 4th column (occurrence) is OPTIONAL: leave empty = EXACTLY ONCE (default); "all" = replace EVERY occurrence - permitted ONLY when old_string is a WHOLE LINE (short old_string + "all" is a collateral-damage bug, not a feature); k = replace only the k-th occurrence.
@@ -169,7 +169,7 @@
                 - When a 回改 touches a finished product, apply the SAME TSV to both translations/chunk-NNN.txt and temptranslations/chunk-NNN.review.txt, then run verify-chunk.py so 审校稿→成品逐字一致 still PASSES.
                 
 
-## Edit tool pitfalls and fallback (learned from hard experience)
+                ## Edit tool pitfalls and fallback (learned from hard experience)
 
                 When using the edit tool to modify translation files (or any file in this workflow), be aware of these failure modes:
                 - The edit tool matches old_string literally byte-for-byte. If the file contains special Unicode characters (em-dash, curly quotes, CJK punctuation), the old_string you type must match those exact bytes. If the tool transport mangles the encoding (e.g. converts an em-dash to a hyphen, or normalizes CJK variants), the match will silently fail with "old_string was not found".
@@ -254,7 +254,7 @@
                 
                 Style calibration: re-read your last 2-3 saved translations against the style notes in memory.md; if the register has drifted, append a dated note to memory.md. Report in 5 lines or fewer: how many consistency fixes applied (0 is normal), any style correction appended. Never report "memory compressed" or "glossary pruned".
                 
-## Session start, mode selection, and welcome (FIRST output of every session)
+                ## Session start, mode selection, and welcome (FIRST output of every session)
 
                 The VERY FIRST thing you output in any session is a short welcome text to the user - a few plain lines, NO tool calls before it. Only AFTER that welcome text do you run any tools. This is non-negotiable: the user must see a message from you before they see any tool activity.
 
