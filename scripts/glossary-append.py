@@ -116,7 +116,13 @@ def parse_row(line: str) -> list[str] | None:
         return None
     if len(cells) < 5:
         return None
-    return cells[:5]      # 原文, 译文, 类别, 首现块, 备注
+    # ★ 不得截断：若某行被误插入的竖线撑到 5 列以上，余下必须**拼回备注**。
+    #   早前这里写 cells[:5]，于是 edit / edit-note 在编辑一条历史破损行时，
+    #   会把它备注尾部（可能正是候选/勿用信息）静默丢掉，再按「旧备注 → 新备注」
+    #   写回，等于永久删除。与 scan-consistency.py 的读取端保持同一口径。
+    if len(cells) > 5:
+        cells = cells[:4] + ["；".join(c for c in cells[4:] if c)]
+    return cells[:5]
 
 
 def sanitize_cell(s: str) -> str:
